@@ -182,13 +182,15 @@ jobs:
           $(eval $(call BuildPackage,default-config))
           EOF
 
+      - name: Update feeds
+        run: ./scripts/feeds update -a && ./scripts/feeds install -a
+
       - name: Golang hack (GOTOOLCHAIN=auto)
         run: |
           # 让 Go 自动下载匹配工具链（frpc 需要 Go 1.24+，runner 有 Go 1.23）
+          # 必须在 feeds update 之后执行，否则 feeds 目录不存在
           sed -i 's/GOTOOLCHAIN=local/GOTOOLCHAIN=auto/' feeds/packages/lang/golang/golang-package.mk
-
-      - name: Update feeds
-        run: ./scripts/feeds update -a && ./scripts/feeds install -a
+          grep GOTOOLCHAIN feeds/packages/lang/golang/golang-package.mk | head -1
 
       - name: Configure .config
         run: |
