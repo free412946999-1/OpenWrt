@@ -71,10 +71,12 @@ jobs:
           	)
           endef
           define Build/Compile
-          	$(MAKE) -C $(PKG_BUILD_DIR) \
+          	$(MAKE) -C $(PKG_BUILD_DIR)/cups \
           		$(TARGET_CONFIGURE_OPTS) \
-          		DSTROOT="$(PKG_INSTALL_DIR)" \
-          		cups
+          		libcups.a
+          	$(MAKE) -C $(PKG_BUILD_DIR)/filter \
+          		$(TARGET_CONFIGURE_OPTS) \
+          		libcupsmime.a
           	$(MAKE) -C $(PKG_BUILD_DIR)/scheduler \
           		$(TARGET_CONFIGURE_OPTS) \
           		DSTROOT="$(PKG_INSTALL_DIR)" \
