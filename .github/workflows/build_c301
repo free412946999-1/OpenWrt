@@ -1,0 +1,90 @@
+name: Build OpenWrt for Qihoo C301
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 300
+    steps:
+      - name: Checkout OpenWrt 25.12.5
+        uses: actions/checkout@v4
+        with:
+          repository: openwrt/openwrt
+          ref: v25.12.5
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install build-essential clang flex bison g++ gawk \
+            gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
+            python3-distutils python3-setuptools rsync unzip zlib1g-dev \
+            file wget subversion mercurial ccache
+          # 安装 Go（frpc 需要）
+          wget -q https://go.dev/dl/go1.23.0.linux-amd64.tar.gz
+          sudo tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+
+      - name: 32MB 分区改造 (DTS)
+        run: |
+          # 改 DTS 为 32MB flash
+          sed -i 's/reg = <0 0x000000 0x01000000>/reg = <0 0x000000 0x02000000>/' target/linux/ath79/dts/ar9344_qihoo_c301.dts
+          sed -i 's/label = "firmware";/label = "firmware";\nread-only;\n };\n\n&partitions {\n\tcompatible = "fixed-partitions";\n\t#address-cells = <1>;\n\t#size-cells = <1>;\n\n\tpartition@0 {\n\t\tlabel = "u-boot";\n\t\treg = <0x000000 0x40000>;\n\t\tread-only;\n\t};\n\n\tpartition@40000 {\n\t\tlabel = "u-boot-env";\n\t\treg = <0x040000 0x10000>;\n\t\tread-only;\n\t};\n\n\tfactory: partition@50000 {\n\t\tlabel = "factory";\n\t\treg = <0x050000 0x10000>;\n\t\tread-only;\n\t};\n\n\tpartition@60000 {\n\t\tlabel = "kernel";\n\t\treg = <0x060000 0x1800000>;\n\t};\n\n\tpartition@1860000 {\n\t\tlabel = "rootfs";\n\t\treg = <0x1860000 0x7a0000>;\n\t};\n\n\tpartition@2000000 {\n\t\tlabel = "nic";\n\t\treg = <0x2000000 0x200000>;\n\t\tread-only;\n\t};\n };/' target/linux/ath79/dts/ar9344_qihoo_c301.dts
+          # 改 IMAGE_SIZE
+          sed -i 's/IMAGE_SIZE := 16M/IMAGE_SIZE := 32M/' target/linux/ath79/image/generic.mk
+
+      - name: 克隆 Argon 主题
+        run: |
+          git clone --depth 1 https://github.com/jerrykuku/luci-theme-argon package/luci-theme-argon
+
+      - name: 创建 cups 包
+        run: |
+          mkdir -p package/custom/cups/files
+          cat > package/custom/cups/Makefile << 'EOF'
+          include $(TOPDIR)/rules.mk
+          PKG_NAME:=cups
+          PKG_VERSION:=2.3.0
+          PKG_RELEASE:=2
+          PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-source.tar.gz
+          PKG_SOURCE_URL:=https://github.com/apple/cups/releases/download/v$(PKG_VERSION)
+          PKG_HASH:=644f374573f5433fb8a8af3880db6a98
+          TARGET_LDFLAGS+=-Wl,-rpath-link=$(STAGING_DIR)/usr/lib
+          include $(INCLUDE_DIR)/package.mk
+          define Package/cups
+            SECTION:=utils
+            CATEGORY:=Utilities
+            TITLE:=CUPS Printing System
+            DEPENDS:=+libpthread +libstdcpp
+          endef
+          define Build/Configure
+            $(call Build/Configure/Default, \
+              --disable-shared --enable-static \
+              --disable-libusb --disable-acl --disable-dnssd \
+              --disable-dbus --disable-avahi --disable-ldap \
+              --disable-pam --disable-slp --disable-gnutls \
+              --disable-openssl --disable-cdsassl \
+            )
+          endef
+          define Build/Compile
+            $(MAKE) -C $(PKG_BUILD_DIR) \
+              $(TARGET_CONFIGURE_OPTS) \
+              DSTROOT="$(PKG_INSTALL_DIR)" \
+              CFLAGS="$(TARGET_CFLAGS)" \
+              LDFLAGS="$(TARGET_LDFLAGS)" \
+              all
+          endef
+          define Package/cups/install
+            $(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/bin $(1)/usr/lib/cups $(1)/etc/cups
+            $(CP) $(PKG_BUILD_DIR)/scheduler/cupsd $(1)/usr/sbin/
+            $(CP) $(PKG_BUILD_DIR)/cups/libcups.a $(1)/usr/lib/cups/
+          endef
+          $(eval $(call BuildPackage,cups))
+          EOF
+
+      - name: 创建 luci-app-cupsd 包
+        run: |
+          mkdir -p package/custom/luci-app-cupsd/luci/controller package/custom/luci-app
