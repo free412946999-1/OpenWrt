@@ -59,7 +59,7 @@ jobs:
           	SECTION:=utils
           	CATEGORY:=Utilities
           	TITLE:=CUPS Printing System
-          	DEPENDS:=+libpthread +libstdcpp
+          	DEPENDS:=+libpthread +libstdcpp +zlib
           endef
           define Build/Configure
           	$(call Build/Configure/Default, \
@@ -74,9 +74,11 @@ jobs:
           	$(MAKE) -C $(PKG_BUILD_DIR) \
           		$(TARGET_CONFIGURE_OPTS) \
           		DSTROOT="$(PKG_INSTALL_DIR)" \
-          		CFLAGS="$(TARGET_CFLAGS)" \
-          		LDFLAGS="$(TARGET_LDFLAGS)" \
-          		all
+          		cups
+          	$(MAKE) -C $(PKG_BUILD_DIR)/scheduler \
+          		$(TARGET_CONFIGURE_OPTS) \
+          		DSTROOT="$(PKG_INSTALL_DIR)" \
+          		cupsd
           endef
           define Package/cups/install
           	$(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/bin $(1)/usr/lib/cups $(1)/etc/cups
