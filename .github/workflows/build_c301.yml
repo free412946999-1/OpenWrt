@@ -41,7 +41,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/jerrykuku/luci-theme-argon package/luci-theme-argon
 
-            - name: 创建 cups 包
+      - name: 创建 cups 包
         run: |
           mkdir -p package/custom/cups/files
           cat > package/custom/cups/Makefile << 'EOF'
