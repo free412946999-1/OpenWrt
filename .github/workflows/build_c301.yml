@@ -227,8 +227,27 @@ jobs:
       - name: Build firmware
         run: |
           echo "::group::Make"
-          make -j$(nproc) V=s
+          make -j$(nproc) V=s > build.log 2>&1
+          rc=$?
           echo "::endgroup::"
+          if [ $rc -ne 0 ]; then
+            echo "=== BUILD FAILED rc=$rc ==="
+            echo "===== TAIL 120 ====="
+            tail -120 build.log
+            echo "===== ERROR LINES ====="
+            grep -E "Error|error:|Stop\.|No space|Killed|No such|make\[[0-9]+\].*Error" build.log | tail -40
+            exit $rc
+          fi
+          echo "BUILD_OK"
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
