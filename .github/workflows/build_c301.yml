@@ -33,7 +33,7 @@ jobs:
         run: |
           # 改 DTS 为 32MB flash
           sed -i 's/reg = <0 0x000000 0x01000000>/reg = <0 0x000000 0x02000000>/' target/linux/ath79/dts/ar9344_qihoo_c301.dts
-          sed -i 's/label = "firmware";/label = "firmware";\nread-only;\n       };\n\n&partitions {\n\tcompatible = "fixed-partitions";\n\t#address-cells = <1>;\n\t#size-cells = <1>;\n\n\tpartition@0 {\n\t\tlabel = "u-boot";\n\t\treg = <0x000000 0x40000>;\n\t\tread-only;\n\t};\n\n\tpartition@40000 {\n\t\tlabel = "u-boot-env";\n\t\treg = <0x040000 0x10000>;\n\t\tread-only;\n\t};\n\n\tfactory: partition@50000 {\n\t\tlabel = "factory";\n\t\treg = <0x050000 0x10000>;\n\t\tread-only;\n\t};\n\n\tpartition@60000 {\n\t\tlabel = "kernel";\n\t\treg = <0x060000 0x1800000>;\n\t};\n\n\tpartition@1860000 {\n\t\tlabel = "rootfs";\n\t\treg = <0x1860000 0x7a0000>;\n\t};\n\n\tpartition@2000000 {\n\t\tlabel = "nic";\n\t\treg = <0x2000000 0x200000>;\n\t\tread-only;\n\t};\n  };/' target/linux/ath79/dts/ar9344_qihoo_c301.dts
+          sed -i 's/label = "firmware";/label = "firmware";\nread-only;\n       };\n\n&partitions {\n          compatible = "fixed-partitions";\n          #address-cells = <1>;\n          #size-cells = <1>;\n\n          partition@0 {\n                    label = "u-boot";\n                    reg = <0x000000 0x40000>;\n                    read-only;\n          };\n\n          partition@40000 {\n                    label = "u-boot-env";\n                    reg = <0x040000 0x10000>;\n                    read-only;\n          };\n\n          factory: partition@50000 {\n                    label = "factory";\n                    reg = <0x050000 0x10000>;\n                    read-only;\n          };\n\n          partition@60000 {\n                    label = "kernel";\n                    reg = <0x060000 0x1800000>;\n          };\n\n          partition@1860000 {\n                    label = "rootfs";\n                    reg = <0x1860000 0x7a0000>;\n          };\n\n          partition@2000000 {\n                    label = "nic";\n                    reg = <0x2000000 0x200000>;\n                    read-only;\n          };\n  };/' target/linux/ath79/dts/ar9344_qihoo_c301.dts
           # 改 IMAGE_SIZE
           sed -i 's/IMAGE_SIZE := 16M/IMAGE_SIZE := 32M/' target/linux/ath79/image/generic.mk
 
@@ -41,7 +41,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/jerrykuku/luci-theme-argon package/luci-theme-argon
 
-      - name: 创建 cups 包
+            - name: 创建 cups 包
         run: |
           mkdir -p package/custom/cups/files
           cat > package/custom/cups/Makefile << 'EOF'
@@ -55,36 +55,35 @@ jobs:
           TARGET_LDFLAGS+=-Wl,-rpath-link=$(STAGING_DIR)/usr/lib
           include $(INCLUDE_DIR)/package.mk
           define Package/cups
-            SECTION:=utils
-            CATEGORY:=Utilities
-            TITLE:=CUPS Printing System
-            DEPENDS:=+libpthread +libstdcpp
+          	SECTION:=utils
+          	CATEGORY:=Utilities
+          	TITLE:=CUPS Printing System
+          	DEPENDS:=+libpthread +libstdcpp
           endef
           define Build/Configure
-            $(call Build/Configure/Default, \
-              --disable-shared --enable-static \
-              --disable-libusb --disable-acl --disable-dnssd \
-              --disable-dbus --disable-avahi --disable-ldap \
-              --disable-pam --disable-slp --disable-gnutls \
-              --disable-openssl --disable-cdsassl \
-            )
+          	$(call Build/Configure/Default, \
+          		--disable-shared --enable-static \
+          		--disable-libusb --disable-acl --disable-dnssd \
+          		--disable-dbus --disable-avahi --disable-ldap \
+          		--disable-pam --disable-slp --disable-gnutls \
+          		--disable-openssl --disable-cdsassl \
+          	)
           endef
           define Build/Compile
-            $(MAKE) -C $(PKG_BUILD_DIR) \
-              $(TARGET_CONFIGURE_OPTS) \
-              DSTROOT="$(PKG_INSTALL_DIR)" \
-              CFLAGS="$(TARGET_CFLAGS)" \
-              LDFLAGS="$(TARGET_LDFLAGS)" \
-              all
+          	$(MAKE) -C $(PKG_BUILD_DIR) \
+          		$(TARGET_CONFIGURE_OPTS) \
+          		DSTROOT="$(PKG_INSTALL_DIR)" \
+          		CFLAGS="$(TARGET_CFLAGS)" \
+          		LDFLAGS="$(TARGET_LDFLAGS)" \
+          		all
           endef
           define Package/cups/install
-            $(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/bin $(1)/usr/lib/cups $(1)/etc/cups
-            $(CP) $(PKG_BUILD_DIR)/scheduler/cupsd $(1)/usr/sbin/
-            $(CP) $(PKG_BUILD_DIR)/cups/libcups.a $(1)/usr/lib/cups/
+          	$(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/bin $(1)/usr/lib/cups $(1)/etc/cups
+          	$(CP) $(PKG_BUILD_DIR)/scheduler/cupsd $(1)/usr/sbin/
+          	$(CP) $(PKG_BUILD_DIR)/cups/libcups.a $(1)/usr/lib/cups/
           endef
           $(eval $(call BuildPackage,cups))
           EOF
-
       - name: 创建 luci-app-cupsd 包
         run: |
           mkdir -p package/custom/luci-app-cupsd/luci/controller package/custom/luci-app-cupsd/luci/model/cbi
@@ -101,7 +100,7 @@ jobs:
           cat > package/custom/luci-app-cupsd/luci/controller/cupsd.lua << 'LUA'
           module("luci.controller.cupsd", package.seeall)
           function index()
-            entry({"admin", "services", "cupsd"], firstchild(), _("CUPS"), 60).dependent=false
+            entry({"admin", "services", "cupsd"}, firstchild(), _("CUPS"), 60).dependent=false
           end
           LUA
 
